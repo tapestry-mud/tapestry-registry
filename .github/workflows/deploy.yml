@@ -24,7 +24,7 @@ jobs:
           username: deploy
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           source: "src/,package.json,package-lock.json,Dockerfile,docker-compose.yml,registry-config.yaml"
-          target: /opt/tapestry-registry
+          target: /opt/tapestry/registry
       - name: Build and restart
         uses: appleboy/ssh-action@v1
         with:
@@ -32,5 +32,5 @@ jobs:
           username: deploy
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           script: |
-            cd /opt/tapestry-registry
+            cd /opt/tapestry/registry
             docker compose up -d --build
