@@ -1,5 +1,5 @@
 const express = require('express');
-const { hashPassword, comparePassword, signToken } = require('../auth');
+const { hashPassword, comparePassword, signToken, requireAuth } = require('../auth');
 
 const RESERVED_HANDLES = ['tapestry', 'core', 'admin', 'system', 'official'];
 
@@ -42,6 +42,24 @@ function createAuthRoutes(db) {
       res.json({ token: signToken({ handle: account.handle, email: account.email }) });
     } catch (err) {
       res.status(500).json({ error: 'login failed' });
+    }
+  });
+
+  router.post('/change-password', requireAuth, async (req, res) => {
+    const { currentPassword, newPassword } = req.body || {};
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ error: 'currentPassword and newPassword are required' });
+    }
+    try {
+      const account = db.prepare(`SELECT * FROM accounts WHERE handle = ?`).get(req.user.handle);
+      if (!(await comparePassword(currentPassword, account.password_hash))) {
+        return res.status(401).json({ error: 'current password is incorrect' });
+      }
+      const newHash = await hashPassword(newPassword);
+      db.prepare(`UPDATE accounts SET password_hash = ? WHERE handle = ?`).run(newHash, req.user.handle);
+      res.json({ message: 'Password updated' });
+    } catch (err) {
+      res.status(500).json({ error: 'password update failed' });
     }
   });
 
