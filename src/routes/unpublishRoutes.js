@@ -2,6 +2,7 @@
 
 const express = require('express');
 const fs = require('fs');
+const path = require('path');
 const { requireAuth } = require('../auth');
 
 function createUnpublishRoutes(db, dataDir) {
@@ -46,6 +47,51 @@ function createUnpublishRoutes(db, dataDir) {
     }
 
     res.json({ message: `Unpublished @${scope}/${name}@${version}` });
+  });
+
+  router.delete('/packages/@:scope/:name', requireAuth, (req, res) => {
+    const { scope, name } = req.params;
+    const force = req.query.force === 'true';
+
+    const pkg = db.prepare(`SELECT * FROM packages WHERE scope = ? AND name = ?`).get(scope, name);
+    if (!pkg) {
+      return res.status(404).json({ error: `Package @${scope}/${name} not found` });
+    }
+
+    if (pkg.owner_handle !== req.user.handle) {
+      if (!force) {
+        return res.status(403).json({ error: 'not the package owner' });
+      }
+      const account = db.prepare(`SELECT is_admin FROM accounts WHERE handle = ?`).get(req.user.handle);
+      if (!account?.is_admin) {
+        return res.status(403).json({ error: 'not the package owner' });
+      }
+    }
+
+    const versions = db.prepare(`SELECT * FROM versions WHERE package_id = ?`).all(pkg.id);
+    const tarballPaths = versions.map((v) => v.tarball_path);
+
+    db.transaction(() => {
+      db.prepare(`DELETE FROM versions WHERE package_id = ?`).run(pkg.id);
+      db.prepare(`DELETE FROM packages WHERE id = ?`).run(pkg.id);
+    })();
+
+    for (const tgzPath of tarballPaths) {
+      try {
+        fs.unlinkSync(tgzPath);
+      } catch (err) {
+        console.warn(`Warning: could not delete tarball ${tgzPath}: ${err.message}`);
+      }
+    }
+
+    const pkgDir = path.join(dataDir, 'packages', `@${scope}`, name);
+    try {
+      fs.rmdirSync(pkgDir);
+    } catch {
+      // not empty or already gone - fine
+    }
+
+    res.json({ message: `Unpublished all versions of @${scope}/${name}` });
   });
 
   return router;

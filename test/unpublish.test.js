@@ -121,3 +121,87 @@ describe('DELETE /v1/packages/@:scope/:name/:version', () => {
     expect(res.status).toBe(401);
   });
 });
+
+describe('DELETE /v1/packages/@:scope/:name', () => {
+  test('deletes all versions and their tarballs', async () => {
+    const { tgzPath: tgz1 } = seedVersionInDataDir(db, dataDir, { version: '1.0.0' });
+    const { tgzPath: tgz2 } = seedVersionInDataDir(db, dataDir, { version: '2.0.0' });
+
+    const res = await request(app)
+      .delete('/v1/packages/@owner/mypkg')
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.message).toBe('Unpublished all versions of @owner/mypkg');
+    expect(fs.existsSync(tgz1)).toBe(false);
+    expect(fs.existsSync(tgz2)).toBe(false);
+    const pkg = db.prepare(`SELECT * FROM packages WHERE scope = 'owner' AND name = 'mypkg'`).get();
+    expect(pkg).toBeUndefined();
+  });
+
+  test('returns 404 when package does not exist', async () => {
+    const res = await request(app)
+      .delete('/v1/packages/@owner/nosuchpkg')
+      .set('Authorization', `Bearer ${token}`);
+    expect(res.status).toBe(404);
+  });
+
+  test('returns 403 when not the owner', async () => {
+    seedVersionInDataDir(db, dataDir);
+    seedAccount(db, { handle: 'other', email: 'other@example.com' });
+    const otherLogin = await request(app).post('/v1/auth/login').send({
+      email: 'other@example.com',
+      password: 'password',
+    });
+
+    const res = await request(app)
+      .delete('/v1/packages/@owner/mypkg')
+      .set('Authorization', `Bearer ${otherLogin.body.token}`);
+    expect(res.status).toBe(403);
+  });
+});
+
+describe('Admin --force bypass', () => {
+  let adminToken;
+  beforeEach(async () => {
+    seedAccount(db, { handle: 'adminuser', email: 'admin@example.com' });
+    db.prepare(`UPDATE accounts SET is_admin = 1 WHERE handle = 'adminuser'`).run();
+    const res = await request(app).post('/v1/auth/login').send({
+      email: 'admin@example.com',
+      password: 'password',
+    });
+    adminToken = res.body.token;
+  });
+
+  test('admin with force=true can delete a version they do not own', async () => {
+    seedVersionInDataDir(db, dataDir);
+
+    const res = await request(app)
+      .delete('/v1/packages/@owner/mypkg/1.0.0?force=true')
+      .set('Authorization', `Bearer ${adminToken}`);
+    expect(res.status).toBe(200);
+  });
+
+  test('admin with force=true can delete all versions of a package they do not own', async () => {
+    seedVersionInDataDir(db, dataDir);
+
+    const res = await request(app)
+      .delete('/v1/packages/@owner/mypkg?force=true')
+      .set('Authorization', `Bearer ${adminToken}`);
+    expect(res.status).toBe(200);
+  });
+
+  test('non-admin with force=true is still rejected', async () => {
+    seedVersionInDataDir(db, dataDir);
+    seedAccount(db, { handle: 'regular', email: 'regular@example.com' });
+    const regularLogin = await request(app).post('/v1/auth/login').send({
+      email: 'regular@example.com',
+      password: 'password',
+    });
+
+    const res = await request(app)
+      .delete('/v1/packages/@owner/mypkg/1.0.0?force=true')
+      .set('Authorization', `Bearer ${regularLogin.body.token}`);
+    expect(res.status).toBe(403);
+  });
+});
