@@ -1,0 +1,24 @@
+services:
+  registry:
+    build: .
+    container_name: tapestry-registry
+    restart: unless-stopped
+    expose:
+      - "3002"
+    environment:
+      - JWT_SECRET=${REGISTRY_JWT_SECRET}
+      - DATA_DIR=/data
+      - CONFIG_PATH=/app/registry-config.yaml
+      - PORT=3002
+    volumes:
+      - registry_data:/data
+      - ./registry-config.yaml:/app/registry-config.yaml:ro
+    networks:
+      - tapestry_default
+
+networks:
+  tapestry_default:
+    external: true
+
+volumes:
+  registry_data:
