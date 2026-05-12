@@ -26,7 +26,7 @@ jobs:
           source: "src/,package.json,package-lock.json,Dockerfile,docker-compose.yml,registry-config.yaml"
           target: /opt/tapestry/registry
       - name: Build and restart
-        uses: appleboy/ssh-action@v1
+        uses: appleboy/ssh-action@v1.2.5
         with:
           host: 165.22.230.43
           username: deploy
