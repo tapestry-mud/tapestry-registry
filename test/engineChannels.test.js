@@ -11,7 +11,7 @@ afterEach(() => cleanupTestApp({ db, dataDir }));
 
 describe('GET /engine-channels', () => {
   test('returns the seeded channels', async () => {
-    const res = await request(app).get('/v1/engine-channels');
+    const res = await request(app).get('/engine-channels');
     expect(res.status).toBe(200);
     expect(Array.isArray(res.body)).toBe(true);
     expect(res.body.length).toBeGreaterThanOrEqual(2);
@@ -21,7 +21,7 @@ describe('GET /engine-channels', () => {
   });
 
   test('each row has channel, docker_tag, version, updated_at', async () => {
-    const res = await request(app).get('/v1/engine-channels');
+    const res = await request(app).get('/engine-channels');
     const nightly = res.body.find(r => r.channel === 'nightly');
     expect(nightly).toMatchObject({
       channel: 'nightly',
@@ -34,7 +34,7 @@ describe('GET /engine-channels', () => {
 
 describe('GET /engine-channels/:channel', () => {
   test('returns a single channel row', async () => {
-    const res = await request(app).get('/v1/engine-channels/nightly');
+    const res = await request(app).get('/engine-channels/nightly');
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({
       channel: 'nightly',
@@ -44,7 +44,7 @@ describe('GET /engine-channels/:channel', () => {
   });
 
   test('returns 404 for unknown channel', async () => {
-    const res = await request(app).get('/v1/engine-channels/unknown');
+    const res = await request(app).get('/engine-channels/unknown');
     expect(res.status).toBe(404);
     expect(res.body.error).toMatch(/not found/i);
   });
@@ -71,7 +71,7 @@ describe('PATCH /admin/engine-channels/:channel', () => {
   test('admin can upsert an existing channel', async () => {
     const token = seedAdmin(db);
     const res = await request(app)
-      .patch('/v1/admin/engine-channels/nightly')
+      .patch('/admin/engine-channels/nightly')
       .set('Authorization', `Bearer ${token}`)
       .send({ docker_tag: '1.0.0', version: '1.0.0' });
     expect(res.status).toBe(200);
@@ -81,7 +81,7 @@ describe('PATCH /admin/engine-channels/:channel', () => {
   test('admin can create a new channel row', async () => {
     const token = seedAdmin(db);
     const res = await request(app)
-      .patch('/v1/admin/engine-channels/0.0.5')
+      .patch('/admin/engine-channels/0.0.5')
       .set('Authorization', `Bearer ${token}`)
       .send({ docker_tag: '0.0.5', version: '0.0.5' });
     expect(res.status).toBe(200);
@@ -90,7 +90,7 @@ describe('PATCH /admin/engine-channels/:channel', () => {
 
   test('returns 401 without token', async () => {
     const res = await request(app)
-      .patch('/v1/admin/engine-channels/nightly')
+      .patch('/admin/engine-channels/nightly')
       .send({ docker_tag: 'edge', version: 'edge' });
     expect(res.status).toBe(401);
   });
@@ -98,7 +98,7 @@ describe('PATCH /admin/engine-channels/:channel', () => {
   test('returns 403 for non-admin user', async () => {
     const token = seedUser(db);
     const res = await request(app)
-      .patch('/v1/admin/engine-channels/nightly')
+      .patch('/admin/engine-channels/nightly')
       .set('Authorization', `Bearer ${token}`)
       .send({ docker_tag: 'edge', version: 'edge' });
     expect(res.status).toBe(403);
@@ -108,7 +108,7 @@ describe('PATCH /admin/engine-channels/:channel', () => {
   test('returns 400 when docker_tag is missing', async () => {
     const token = seedAdmin(db);
     const res = await request(app)
-      .patch('/v1/admin/engine-channels/nightly')
+      .patch('/admin/engine-channels/nightly')
       .set('Authorization', `Bearer ${token}`)
       .send({ version: 'edge' });
     expect(res.status).toBe(400);
@@ -118,7 +118,7 @@ describe('PATCH /admin/engine-channels/:channel', () => {
   test('returns 400 when version is missing', async () => {
     const token = seedAdmin(db);
     const res = await request(app)
-      .patch('/v1/admin/engine-channels/nightly')
+      .patch('/admin/engine-channels/nightly')
       .set('Authorization', `Bearer ${token}`)
       .send({ docker_tag: 'edge' });
     expect(res.status).toBe(400);
