@@ -52,7 +52,7 @@ function createAuthRoutes(db) {
     }
     try {
       const account = db.prepare(`SELECT * FROM accounts WHERE handle = ?`).get(req.user.handle);
-      if (!(await comparePassword(currentPassword, account.password_hash))) {
+      if (!account || !(await comparePassword(currentPassword, account.password_hash))) {
         return res.status(401).json({ error: 'current password is incorrect' });
       }
       const newHash = await hashPassword(newPassword);

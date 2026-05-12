@@ -68,4 +68,13 @@ describe('POST /v1/auth/change-password', () => {
       .send({ currentPassword: 'password', newPassword: 'newpass123' });
     expect(res.status).toBe(401);
   });
+
+  test('returns 401 when account is deleted after token was issued', async () => {
+    db.prepare(`DELETE FROM accounts WHERE email = 'test@example.com'`).run();
+    const res = await request(app)
+      .post('/v1/auth/change-password')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ currentPassword: 'password', newPassword: 'newpass123' });
+    expect(res.status).toBe(401);
+  });
 });
