@@ -15,7 +15,7 @@ Hosts packs published via `tapestry publish`.
 
 ```bash
 npm ci
-npm test     # 68 tests across 8 suites
+npm test     # 103 tests across 11 suites
 npm start    # listens on :3002
 ```
 
@@ -35,6 +35,21 @@ Push to `master`. GitHub Actions runs tests, then SCPs source files to the dropl
 and runs `docker compose up -d --build`. The `.env` file lives on the droplet
 and is never touched by CI.
 
+## CI account
+
+The `ci@tapestryengine.com` account (handle: `ci`, is_admin: 1) is the automation identity used by
+`tapestry-public` CI to update engine channel mappings after every Docker push. Its token is stored
+as `REGISTRY_CI_TOKEN` in tapestry-public's GitHub Actions secrets.
+
+To rotate the token (e.g., when the 1-year JWT expires), run on the droplet:
+
+```bash
+docker exec tapestry-registry sh -c \
+  'JWT_SECRET=<secret> DB_PATH=/data/registry.db node /app/scripts/bootstrap-ci-account.js'
+```
+
+Copy the printed token and update the `REGISTRY_CI_TOKEN` secret in tapestry-public.
+
 ## API
 
 - `GET /health` - health check
@@ -45,3 +60,6 @@ and is never touched by CI.
 - `GET /v1/packages/:scope/:name` - package metadata
 - `POST /v1/publish` - publish a tarball (JWT required)
 - `GET /v1/search?q=` - search packages
+- `GET /v1/engine-channels` - list engine channel mappings (nightly, stable, semver)
+- `GET /v1/engine-channels/:channel` - get a single channel mapping
+- `PATCH /v1/admin/engine-channels/:channel` - upsert a channel mapping (admin JWT required)

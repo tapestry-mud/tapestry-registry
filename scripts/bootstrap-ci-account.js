@@ -1,4 +1,11 @@
 #!/usr/bin/env node
+// One-time setup: creates the ci@tapestryengine.com admin account and prints a 1-year JWT.
+// Safe to re-run -- if the account already exists it skips creation and just prints a fresh token.
+// Use this to rotate REGISTRY_CI_TOKEN in tapestry-public GitHub Actions secrets.
+//
+// On the droplet:
+//   docker exec tapestry-registry sh -c \
+//     'JWT_SECRET=<secret> DB_PATH=/data/registry.db node /app/scripts/bootstrap-ci-account.js'
 'use strict';
 
 const path = require('path');
