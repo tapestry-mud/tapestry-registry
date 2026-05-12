@@ -1,0 +1,10 @@
+limits:
+  default:
+    max_tarball_mb: 2
+    max_versions: 20
+    max_scope_mb: 50
+  total_cap_gb: 10
+
+bypass:
+  - "@tapestry"
+  - "@mallek"
