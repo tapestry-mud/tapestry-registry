@@ -36,6 +36,19 @@ function initDb(dbPath = ':memory:') {
       published_at TEXT    NOT NULL DEFAULT (datetime('now')),
       UNIQUE(package_id, version)
     );
+
+    CREATE TABLE IF NOT EXISTS engine_channels (
+      channel     TEXT PRIMARY KEY,
+      docker_tag  TEXT NOT NULL,
+      version     TEXT NOT NULL,
+      updated_at  DATETIME DEFAULT (datetime('now'))
+    );
+
+    INSERT OR IGNORE INTO engine_channels (channel, docker_tag, version)
+      VALUES ('nightly', 'edge', 'edge');
+
+    INSERT OR IGNORE INTO engine_channels (channel, docker_tag, version)
+      VALUES ('stable', 'latest', 'latest');
   `);
 
   return db;
