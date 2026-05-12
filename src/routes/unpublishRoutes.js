@@ -31,12 +31,13 @@ function createUnpublishRoutes(db, dataDir) {
       return res.status(404).json({ error: `Version ${version} not found` });
     }
 
-    db.prepare(`DELETE FROM versions WHERE id = ?`).run(ver.id);
-
-    const remaining = db.prepare(`SELECT COUNT(*) as c FROM versions WHERE package_id = ?`).get(pkg.id).c;
-    if (remaining === 0) {
-      db.prepare(`DELETE FROM packages WHERE id = ?`).run(pkg.id);
-    }
+    db.transaction(() => {
+      db.prepare(`DELETE FROM versions WHERE id = ?`).run(ver.id);
+      const remaining = db.prepare(`SELECT COUNT(*) as c FROM versions WHERE package_id = ?`).get(pkg.id).c;
+      if (remaining === 0) {
+        db.prepare(`DELETE FROM packages WHERE id = ?`).run(pkg.id);
+      }
+    })();
 
     try {
       fs.unlinkSync(ver.tarball_path);
