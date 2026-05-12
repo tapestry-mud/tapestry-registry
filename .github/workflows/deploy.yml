@@ -1,0 +1,36 @@
+name: Deploy
+on:
+  push:
+    branches: [master]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci
+      - run: npm test
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy to droplet
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: 165.22.230.43
+          username: deploy
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          source: "src/,package.json,package-lock.json,Dockerfile,docker-compose.yml,registry-config.yaml"
+          target: /opt/tapestry-registry
+      - name: Build and restart
+        uses: appleboy/ssh-action@v1
+        with:
+          host: 165.22.230.43
+          username: deploy
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            cd /opt/tapestry-registry
+            docker compose up -d --build
