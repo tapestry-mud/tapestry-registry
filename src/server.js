@@ -46,7 +46,7 @@ function createApp({ db, dataDir, config, metrics }) {
     app.use('/v1', createPackageRoutes(db, dataDir, metrics));
     app.use('/v1', publishLimiter, createPublishRoutes(db, dataDir, config || {}, metrics));
     app.use('/v1', createUnpublishRoutes(db, dataDir));
-    app.use(createEngineChannelRoutes(db));
+    app.use('/v1', createEngineChannelRoutes(db));
   }
 
   return app;
