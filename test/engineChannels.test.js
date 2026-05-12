@@ -49,3 +49,79 @@ describe('GET /engine-channels/:channel', () => {
     expect(res.body.error).toMatch(/not found/i);
   });
 });
+
+const bcrypt = require('bcryptjs');
+const { signToken } = require('../src/auth');
+
+function seedAdmin(db) {
+  const hash = bcrypt.hashSync('password', 1);
+  db.prepare(`INSERT INTO accounts (handle, email, password_hash, is_admin) VALUES (?, ?, ?, 1)`)
+    .run('admin', 'admin@example.com', hash);
+  return signToken({ handle: 'admin', email: 'admin@example.com' });
+}
+
+function seedUser(db) {
+  const hash = bcrypt.hashSync('password', 1);
+  db.prepare(`INSERT INTO accounts (handle, email, password_hash, is_admin) VALUES (?, ?, ?, 0)`)
+    .run('regularuser', 'user@example.com', hash);
+  return signToken({ handle: 'regularuser', email: 'user@example.com' });
+}
+
+describe('PATCH /admin/engine-channels/:channel', () => {
+  test('admin can upsert an existing channel', async () => {
+    const token = seedAdmin(db);
+    const res = await request(app)
+      .patch('/v1/admin/engine-channels/nightly')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ docker_tag: '1.0.0', version: '1.0.0' });
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ channel: 'nightly', docker_tag: '1.0.0', version: '1.0.0' });
+  });
+
+  test('admin can create a new channel row', async () => {
+    const token = seedAdmin(db);
+    const res = await request(app)
+      .patch('/v1/admin/engine-channels/0.0.5')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ docker_tag: '0.0.5', version: '0.0.5' });
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ channel: '0.0.5', docker_tag: '0.0.5', version: '0.0.5' });
+  });
+
+  test('returns 401 without token', async () => {
+    const res = await request(app)
+      .patch('/v1/admin/engine-channels/nightly')
+      .send({ docker_tag: 'edge', version: 'edge' });
+    expect(res.status).toBe(401);
+  });
+
+  test('returns 403 for non-admin user', async () => {
+    const token = seedUser(db);
+    const res = await request(app)
+      .patch('/v1/admin/engine-channels/nightly')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ docker_tag: 'edge', version: 'edge' });
+    expect(res.status).toBe(403);
+    expect(res.body.error).toMatch(/admin/i);
+  });
+
+  test('returns 400 when docker_tag is missing', async () => {
+    const token = seedAdmin(db);
+    const res = await request(app)
+      .patch('/v1/admin/engine-channels/nightly')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ version: 'edge' });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/docker_tag/);
+  });
+
+  test('returns 400 when version is missing', async () => {
+    const token = seedAdmin(db);
+    const res = await request(app)
+      .patch('/v1/admin/engine-channels/nightly')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ docker_tag: 'edge' });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/version/);
+  });
+});
