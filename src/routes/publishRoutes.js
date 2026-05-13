@@ -11,7 +11,7 @@ const upload = multer({
   limits: { fileSize: 50 * 1024 * 1024 }, // 50MB hard ceiling; scope limits enforced separately
 });
 
-const REQUIRED_MANIFEST_FIELDS = ['name', 'version', 'description', 'type', 'author', 'license', 'engine', 'tag_validation'];
+const REQUIRED_MANIFEST_FIELDS = ['name', 'version', 'description', 'type', 'author', 'license', 'engine', 'validation'];
 const SEMVER_RE = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-([\da-zA-Z-]+(?:\.[\da-zA-Z-]+)*))?(?:\+([\da-zA-Z-]+(?:\.[\da-zA-Z-]+)*))?$/;
 
 function parseScopedName(packageName) {

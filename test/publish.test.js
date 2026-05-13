@@ -104,7 +104,7 @@ describe('POST /v1/publish', () => {
       author: { name: 'Test', handle: 'mallek' },
       license: 'MIT',
       engine: '>=3.0.0',
-      tag_validation: 'strict',
+      validation: 'strict',
       ...overrides,
     });
   }
@@ -248,7 +248,7 @@ describe('publish auto-tags latest and reads private flag', () => {
     author: 'Publisher',
     license: 'MIT',
     engine: '>=0.0.1',
-    tag_validation: 'strict',
+    validation: 'strict',
   };
 
   test('auto-upserts latest dist-tag after successful publish', async () => {
