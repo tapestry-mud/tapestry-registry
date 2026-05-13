@@ -7,6 +7,7 @@ const { createPublishRoutes } = require('./routes/publishRoutes');
 const { createUnpublishRoutes } = require('./routes/unpublishRoutes');
 const { createEngineChannelRoutes } = require('./routes/engineChannelRoutes');
 const { createPackTagRoutes } = require('./routes/packTagRoutes');
+const { createPresetRoutes } = require('./routes/presetRoutes');
 
 const isTest = () => process.env.NODE_ENV === 'test';
 const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 5, standardHeaders: true, legacyHeaders: false, skip: isTest });
@@ -49,6 +50,7 @@ function createApp({ db, dataDir, config, metrics }) {
     app.use('/v1', publishLimiter, createPublishRoutes(db, dataDir, config || {}, metrics));
     app.use('/v1', createUnpublishRoutes(db, dataDir));
     app.use('/v1', createEngineChannelRoutes(db));
+    app.use('/v1', createPresetRoutes(db));
   }
 
   return app;
