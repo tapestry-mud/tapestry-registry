@@ -222,3 +222,75 @@ describe('POST /v1/publish', () => {
     expect(files.filter(f => f.endsWith('.tmp'))).toHaveLength(0);
   });
 });
+
+describe('publish auto-tags latest and reads private flag', () => {
+  let pubApp, pubDb, pubDataDir;
+
+  beforeEach(() => {
+    ({ app: pubApp, db: pubDb, dataDir: pubDataDir } = createTestApp());
+    seedAccount(pubDb, { handle: 'publisher', email: 'pub@example.com' });
+  });
+  afterEach(() => cleanupTestApp({ db: pubDb, dataDir: pubDataDir }));
+
+  function buildPublishForm(meta) {
+    const FormData = require('form-data');
+    const form = new FormData();
+    form.append('tarball', Buffer.from('fake tarball'), { filename: '1.0.0.tgz', contentType: 'application/gzip' });
+    form.append('metadata', JSON.stringify(meta));
+    return form;
+  }
+
+  const baseMeta = {
+    name: '@publisher/mypkg',
+    version: '1.0.0',
+    description: 'Test',
+    type: 'module',
+    author: 'Publisher',
+    license: 'MIT',
+    engine: '>=0.0.1',
+    tag_validation: 'strict',
+  };
+
+  test('auto-upserts latest dist-tag after successful publish', async () => {
+    const token = signToken({ handle: 'publisher' });
+    const form = buildPublishForm(baseMeta);
+    const res = await request(pubApp)
+      .post('/v1/publish')
+      .set('Authorization', `Bearer ${token}`)
+      .set(form.getHeaders())
+      .send(form.getBuffer());
+    expect(res.status).toBe(201);
+
+    const tag = pubDb.prepare(
+      `SELECT version FROM pack_tags WHERE scope = 'publisher' AND name = 'mypkg' AND tag = 'latest'`
+    ).get();
+    expect(tag).toBeDefined();
+    expect(tag.version).toBe('1.0.0');
+  });
+
+  test('is_private set to 1 when manifest has private: true', async () => {
+    const token = signToken({ handle: 'publisher' });
+    const form = buildPublishForm({ ...baseMeta, name: '@publisher/private-pkg', private: true });
+    await request(pubApp)
+      .post('/v1/publish')
+      .set('Authorization', `Bearer ${token}`)
+      .set(form.getHeaders())
+      .send(form.getBuffer());
+
+    const pkg = pubDb.prepare(`SELECT is_private FROM packages WHERE scope = 'publisher' AND name = 'private-pkg'`).get();
+    expect(pkg.is_private).toBe(1);
+  });
+
+  test('is_private defaults to 0 when private not in manifest', async () => {
+    const token = signToken({ handle: 'publisher' });
+    const form = buildPublishForm(baseMeta);
+    await request(pubApp)
+      .post('/v1/publish')
+      .set('Authorization', `Bearer ${token}`)
+      .set(form.getHeaders())
+      .send(form.getBuffer());
+
+    const pkg = pubDb.prepare(`SELECT is_private FROM packages WHERE scope = 'publisher' AND name = 'mypkg'`).get();
+    expect(pkg.is_private).toBe(0);
+  });
+});

@@ -111,7 +111,8 @@ function createPublishRoutes(db, dataDir, config, metrics) {
     const tmpPath = path.join(tgzDir, `${manifest.version}.tgz.tmp`);
 
     // DB first, then write tarball — no orphans on crash
-    db.prepare(`INSERT OR IGNORE INTO packages (scope, name, owner_handle) VALUES (?, ?, ?)`).run(scope, name, req.user.handle);
+    const isPrivate = manifest.private === true ? 1 : 0;
+    db.prepare(`INSERT OR IGNORE INTO packages (scope, name, owner_handle, is_private) VALUES (?, ?, ?, ?)`).run(scope, name, req.user.handle, isPrivate);
     const pkg = db.prepare(`SELECT id FROM packages WHERE scope = ? AND name = ?`).get(scope, name);
 
     try {
@@ -130,6 +131,11 @@ function createPublishRoutes(db, dataDir, config, metrics) {
     fs.mkdirSync(tgzDir, { recursive: true });
     fs.writeFileSync(tmpPath, tarball);
     fs.renameSync(tmpPath, tgzPath);
+
+    db.prepare(
+      `INSERT OR REPLACE INTO pack_tags (scope, name, tag, version, updated_at)
+       VALUES (?, ?, 'latest', ?, datetime('now'))`
+    ).run(scope, name, manifest.version);
 
     if (metrics) {
       metrics.publishes.inc({ scope: `@${scope}`, name });
