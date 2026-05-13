@@ -1,6 +1,25 @@
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
+const { requireAuth, verifyToken } = require('../auth');
+
+function resolveOptionalUser(req, db) {
+  const auth = req.headers.authorization;
+  if (!auth || !auth.startsWith('Bearer ')) { return null; }
+  try {
+    const payload = verifyToken(auth.slice(7));
+    return db.prepare(`SELECT handle, is_admin FROM accounts WHERE handle = ?`).get(payload.handle);
+  } catch {
+    return null;
+  }
+}
+
+function canAccessPack(pkg, user) {
+  if (!pkg.is_private) { return true; }
+  if (!user) { return false; }
+  if (pkg.owner_handle === user.handle) { return true; }
+  return !!user.is_admin;
+}
 
 function createPackageRoutes(db, dataDir, metrics) {
   const router = express.Router();
@@ -11,6 +30,7 @@ function createPackageRoutes(db, dataDir, metrics) {
              v.version, v.manifest, v.integrity, v.tarball_size, v.published_at
       FROM packages p
       JOIN versions v ON v.package_id = p.id
+      WHERE p.is_private = 0
       ORDER BY p.scope, p.name, v.published_at DESC
     `).all();
 
@@ -44,6 +64,10 @@ function createPackageRoutes(db, dataDir, metrics) {
     const pkg = db.prepare(`SELECT * FROM packages WHERE scope = ? AND name = ?`).get(scope, name);
     if (!pkg) {
       return res.status(404).json({ error: 'package not found' });
+    }
+    const user = resolveOptionalUser(req, db);
+    if (!canAccessPack(pkg, user)) {
+      return res.status(404).json({ error: 'not found' });
     }
     const versions = db.prepare(`
       SELECT version, manifest, integrity, tarball_size, downloads, published_at
@@ -88,6 +112,7 @@ function createPackageRoutes(db, dataDir, metrics) {
       WHERE (v.package_id, v.published_at) IN (
         SELECT package_id, MAX(published_at) FROM versions GROUP BY package_id
       )
+      AND p.is_private = 0
       AND (
         lower(p.name) LIKE ?
         OR lower(v.manifest) LIKE ?
@@ -123,6 +148,10 @@ function createPackageRoutes(db, dataDir, metrics) {
     const pkg = db.prepare(`SELECT * FROM packages WHERE scope = ? AND name = ?`).get(scope, name);
     if (!pkg) {
       return res.status(404).json({ error: 'package not found' });
+    }
+    const tgzUser = resolveOptionalUser(req, db);
+    if (!canAccessPack(pkg, tgzUser)) {
+      return res.status(404).json({ error: 'not found' });
     }
     const ver = db.prepare(`SELECT * FROM versions WHERE package_id = ? AND version = ?`).get(pkg.id, version);
     if (!ver) {

@@ -31,8 +31,11 @@ function seedPackage(db, {
   ownerHandle = 'testuser',
   description = 'A test package',
   keywords = ['test'],
+  isPrivate = false,
 } = {}) {
-  const pkg = db.prepare(`INSERT OR IGNORE INTO packages (scope, name, owner_handle) VALUES (?, ?, ?)`).run(scope, name, ownerHandle);
+  const pkg = db.prepare(
+    `INSERT OR IGNORE INTO packages (scope, name, owner_handle, is_private) VALUES (?, ?, ?, ?)`
+  ).run(scope, name, ownerHandle, isPrivate ? 1 : 0);
   const packageId = pkg.lastInsertRowid ||
     db.prepare(`SELECT id FROM packages WHERE scope = ? AND name = ?`).get(scope, name).id;
 
