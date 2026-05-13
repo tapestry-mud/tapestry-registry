@@ -51,9 +51,18 @@ function createPackageRoutes(db, dataDir, metrics) {
       ORDER BY published_at DESC
     `).all(pkg.id);
 
+    const tagRows = db.prepare(
+      `SELECT tag, version FROM pack_tags WHERE scope = ? AND name = ?`
+    ).all(scope, name);
+    const dist_tags = {};
+    for (const row of tagRows) {
+      dist_tags[row.tag] = row.version;
+    }
+
     res.json({
       name: `@${scope}/${name}`,
       owner: pkg.owner_handle,
+      dist_tags,
       versions: versions.map(v => {
         let manifest;
         try {
