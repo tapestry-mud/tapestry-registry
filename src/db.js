@@ -49,7 +49,34 @@ function initDb(dbPath = ':memory:') {
 
     INSERT OR IGNORE INTO engine_channels (channel, docker_tag, version)
       VALUES ('stable', 'latest', 'latest');
+
+    CREATE TABLE IF NOT EXISTS pack_tags (
+      scope      TEXT NOT NULL,
+      name       TEXT NOT NULL,
+      tag        TEXT NOT NULL,
+      version    TEXT NOT NULL,
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      PRIMARY KEY (scope, name, tag)
+    );
+
+    CREATE TABLE IF NOT EXISTS presets (
+      name           TEXT PRIMARY KEY,
+      version        TEXT NOT NULL,
+      engine_channel TEXT NOT NULL,
+      packs          TEXT NOT NULL,
+      updated_at     TEXT NOT NULL DEFAULT (datetime('now'))
+    );
   `);
+
+  db.prepare(
+    `INSERT OR IGNORE INTO presets (name, version, engine_channel, packs)
+     VALUES ('starter', '0.0.1', 'stable', ?)`
+  ).run(JSON.stringify({ '@tapestry/core': '0.0.2', '@tapestry/example-pack': '0.0.2' }));
+
+  const hasPrivateCol = db.pragma('table_info(packages)').some(c => c.name === 'is_private');
+  if (!hasPrivateCol) {
+    db.exec('ALTER TABLE packages ADD COLUMN is_private INTEGER NOT NULL DEFAULT 0');
+  }
 
   return db;
 }
