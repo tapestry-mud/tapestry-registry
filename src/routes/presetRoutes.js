@@ -6,6 +6,13 @@ const { requireAuth } = require('../auth');
 function createPresetRoutes(db) {
   const router = express.Router();
 
+  router.get('/presets', (req, res) => {
+    const rows = db.prepare(
+      `SELECT name, version, engine_channel, updated_at FROM presets ORDER BY name`
+    ).all();
+    res.json(rows);
+  });
+
   router.get('/presets/:name', (req, res) => {
     const row = db.prepare(`SELECT * FROM presets WHERE name = ?`).get(req.params.name);
     if (!row) {

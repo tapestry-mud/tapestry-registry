@@ -93,3 +93,35 @@ describe('PATCH /v1/admin/presets/:name', () => {
     expect(fetched.status).toBe(200);
   });
 });
+
+describe('GET /v1/presets', () => {
+  test('returns array of presets without packs blob', async () => {
+    const res = await request(app).get('/v1/presets');
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body)).toBe(true);
+    expect(res.body.length).toBeGreaterThan(0);
+    const starter = res.body.find(p => p.name === 'starter');
+    expect(starter).toBeDefined();
+    expect(starter.version).toBeDefined();
+    expect(starter.engine_channel).toBe('stable');
+    expect(starter.updated_at).toBeDefined();
+  });
+
+  test('does not include packs field in list response', async () => {
+    const res = await request(app).get('/v1/presets');
+    expect(res.status).toBe(200);
+    const starter = res.body.find(p => p.name === 'starter');
+    expect(starter.packs).toBeUndefined();
+  });
+
+  test('returns presets ordered by name', async () => {
+    const token = await loginAs('admin@example.com');
+    await request(app)
+      .patch('/v1/admin/presets/advanced')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ version: '1.0.0', engine_channel: 'stable', packs: { '@tapestry/core': '1.0.0' } });
+    const res = await request(app).get('/v1/presets');
+    const names = res.body.map(p => p.name);
+    expect(names).toEqual([...names].sort());
+  });
+});
