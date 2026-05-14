@@ -1,6 +1,6 @@
 services:
   registry:
-    build: .
+    image: ghcr.io/tapestry-mud/tapestry-registry:latest
     container_name: tapestry-registry
     restart: unless-stopped
     expose:

@@ -47,7 +47,8 @@ function createApp({ db, dataDir, config, metrics }) {
     app.use('/v1/auth', createAuthRoutes(db));
     app.use('/v1', createPackTagRoutes(db));
     app.use('/v1', createPackageRoutes(db, dataDir, metrics));
-    app.use('/v1', publishLimiter, createPublishRoutes(db, dataDir, config || {}, metrics));
+    app.use('/v1/publish', publishLimiter);
+    app.use('/v1', createPublishRoutes(db, dataDir, config || {}, metrics));
     app.use('/v1', createUnpublishRoutes(db, dataDir));
     app.use('/v1', createEngineChannelRoutes(db));
     app.use('/v1', createPresetRoutes(db));
