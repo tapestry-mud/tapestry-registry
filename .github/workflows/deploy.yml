@@ -61,6 +61,7 @@ jobs:
           username: deploy
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           script: |
+            docker logout ghcr.io 2>/dev/null || true
             cd /opt/tapestry/registry
             docker compose pull
             docker compose up -d
