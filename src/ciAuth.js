@@ -1,7 +1,7 @@
 'use strict';
 
 const GITHUB_OIDC_ISSUER = 'https://token.actions.githubusercontent.com';
-const JWKS_URL = `${GITHUB_OIDC_ISSUER}/.well-known/jwks.json`;
+const JWKS_URL = `${GITHUB_OIDC_ISSUER}/.well-known/jwks`;
 
 let _jwks = null;
 let _jwtVerify = null;
