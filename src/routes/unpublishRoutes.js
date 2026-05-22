@@ -4,6 +4,7 @@ const express = require('express');
 const fs = require('fs');
 const path = require('path');
 const { requireAuth } = require('../auth');
+const { safePath } = require('../safePath');
 
 function createUnpublishRoutes(db, dataDir) {
   const router = express.Router();
@@ -84,7 +85,10 @@ function createUnpublishRoutes(db, dataDir) {
       }
     }
 
-    const pkgDir = path.join(dataDir, 'packages', `@${scope}`, name);
+    const pkgDir = safePath(dataDir, 'packages', `@${scope}`, name);
+    if (!pkgDir) {
+      return res.status(400).json({ error: 'invalid path' });
+    }
     try {
       fs.rmdirSync(pkgDir);
     } catch {

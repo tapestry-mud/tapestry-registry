@@ -48,7 +48,8 @@ function createApp({ db, dataDir, config, metrics }) {
         res.set('Content-Type', metrics.registry.contentType);
         res.end(await metrics.registry.metrics());
       } catch (err) {
-        res.status(500).end(String(err));
+        console.error('metrics error:', err);
+        res.status(500).end('internal server error');
       }
     });
   }

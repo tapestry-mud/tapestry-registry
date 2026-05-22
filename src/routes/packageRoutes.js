@@ -2,6 +2,7 @@ const express = require('express');
 const path = require('path');
 const fs = require('fs');
 const { requireAuth, verifyToken } = require('../auth');
+const { safePath } = require('../safePath');
 
 function resolveOptionalUser(req, db) {
   const auth = req.headers.authorization;
@@ -158,7 +159,10 @@ function createPackageRoutes(db, dataDir, metrics) {
       return res.status(404).json({ error: 'version not found' });
     }
 
-    const tgzPath = path.join(dataDir, 'packages', `@${scope}`, name, `${version}.tgz`);
+    const tgzPath = safePath(dataDir, 'packages', `@${scope}`, name, `${version}.tgz`);
+    if (!tgzPath) {
+      return res.status(400).json({ error: 'invalid path' });
+    }
     if (!fs.existsSync(tgzPath)) {
       return res.status(404).json({ error: 'tarball not found on disk' });
     }
