@@ -9,6 +9,5 @@ WORKDIR /app
 COPY --from=build /app/node_modules ./node_modules
 COPY package.json ./
 COPY src/ src/
-COPY scripts/ scripts/
 EXPOSE 3002
 CMD ["node", "src/index.js"]
