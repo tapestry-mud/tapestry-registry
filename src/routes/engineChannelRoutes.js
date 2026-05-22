@@ -1,5 +1,7 @@
+'use strict';
+
 const express = require('express');
-const { requireAuth } = require('../auth');
+const { requireCIAuth } = require('../ciAuth');
 
 function createEngineChannelRoutes(db) {
   const router = express.Router();
@@ -17,14 +19,9 @@ function createEngineChannelRoutes(db) {
     res.json(row);
   });
 
-  router.patch('/admin/engine-channels/:channel', requireAuth, (req, res) => {
+  router.patch('/admin/engine-channels/:channel', requireCIAuth, (req, res) => {
     const { channel } = req.params;
     const { docker_tag, version } = req.body;
-
-    const account = db.prepare('SELECT is_admin FROM accounts WHERE handle = ?').get(req.user.handle);
-    if (!account?.is_admin) {
-      return res.status(403).json({ error: 'admin access required' });
-    }
 
     if (!docker_tag) {
       return res.status(400).json({ error: 'docker_tag is required' });
