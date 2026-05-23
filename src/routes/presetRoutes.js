@@ -42,6 +42,18 @@ function createPresetRoutes(db) {
     return res.json({ name: req.params.name, version, engine_channel, packs });
   });
 
+  router.delete('/admin/presets/:name', requireAuth, (req, res) => {
+    const user = db.prepare(`SELECT is_admin FROM accounts WHERE handle = ?`).get(req.user.handle);
+    if (!user?.is_admin) {
+      return res.status(403).json({ error: 'admin access required' });
+    }
+    const result = db.prepare(`DELETE FROM presets WHERE name = ?`).run(req.params.name);
+    if (result.changes === 0) {
+      return res.status(404).json({ error: `Preset '${req.params.name}' not found` });
+    }
+    return res.json({ deleted: req.params.name });
+  });
+
   return router;
 }
 

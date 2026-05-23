@@ -94,6 +94,58 @@ describe('PATCH /v1/admin/presets/:name', () => {
   });
 });
 
+describe('DELETE /v1/admin/presets/:name', () => {
+  async function seedPreset(name) {
+    const token = await loginAs('admin@example.com');
+    await request(app)
+      .patch(`/v1/admin/presets/${name}`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ version: '1.0.0', engine_channel: 'stable', packs: { '@tapestry/core': '1.0.0' } });
+  }
+
+  test('requires authentication', async () => {
+    const res = await request(app).delete('/v1/admin/presets/starter');
+    expect(res.status).toBe(401);
+  });
+
+  test('non-admin gets 403', async () => {
+    const token = await loginAs('user@example.com');
+    const res = await request(app)
+      .delete('/v1/admin/presets/starter')
+      .set('Authorization', `Bearer ${token}`);
+    expect(res.status).toBe(403);
+  });
+
+  test('admin can delete a preset', async () => {
+    await seedPreset('bad-preset');
+    const token = await loginAs('admin@example.com');
+    const res = await request(app)
+      .delete('/v1/admin/presets/bad-preset')
+      .set('Authorization', `Bearer ${token}`);
+    expect(res.status).toBe(200);
+    const row = db.prepare(`SELECT * FROM presets WHERE name = 'bad-preset'`).get();
+    expect(row).toBeUndefined();
+  });
+
+  test('deleted preset returns 404 from GET', async () => {
+    await seedPreset('bad-preset');
+    const token = await loginAs('admin@example.com');
+    await request(app)
+      .delete('/v1/admin/presets/bad-preset')
+      .set('Authorization', `Bearer ${token}`);
+    const res = await request(app).get('/v1/presets/bad-preset');
+    expect(res.status).toBe(404);
+  });
+
+  test('returns 404 when deleting a preset that does not exist', async () => {
+    const token = await loginAs('admin@example.com');
+    const res = await request(app)
+      .delete('/v1/admin/presets/nonexistent')
+      .set('Authorization', `Bearer ${token}`);
+    expect(res.status).toBe(404);
+  });
+});
+
 describe('GET /v1/presets', () => {
   test('returns array of presets without packs blob', async () => {
     const res = await request(app).get('/v1/presets');
