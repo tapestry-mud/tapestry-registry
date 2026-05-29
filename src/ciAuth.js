@@ -29,31 +29,32 @@ function _getAllowedRepos() {
   return raw.split(',').map((s) => s.trim()).filter(Boolean);
 }
 
+async function verifyOIDC(token) {
+  await _init();
+  const { payload } = await _jwtVerify(token, _jwks, {
+    issuer: GITHUB_OIDC_ISSUER,
+    audience: 'https://registry.tapestryengine.com',
+  });
+  return payload;
+}
+
 async function requireCIAuth(req, res, next) {
   const authHeader = req.headers.authorization || '';
   if (!authHeader.startsWith('Bearer ')) {
     return res.status(401).json({ error: 'CI authentication required' });
   }
-  const token = authHeader.slice(7);
-
   let payload;
   try {
-    await _init();
-    ({ payload } = await _jwtVerify(token, _jwks, {
-      issuer: GITHUB_OIDC_ISSUER,
-      audience: 'https://registry.tapestryengine.com',
-    }));
+    payload = await verifyOIDC(authHeader.slice(7));
   } catch {
     return res.status(401).json({ error: 'CI token verification failed' });
   }
-
   const allowedRepos = _getAllowedRepos();
   if (allowedRepos.length === 0 || !allowedRepos.includes(payload.repository)) {
     return res.status(403).json({ error: 'repository not authorized' });
   }
-
   req.ciAuth = true;
   next();
 }
 
-module.exports = { requireCIAuth, _resetCacheForTest };
+module.exports = { requireCIAuth, verifyOIDC, _resetCacheForTest };

@@ -8,12 +8,14 @@ const { createUnpublishRoutes } = require('./routes/unpublishRoutes');
 const { createEngineChannelRoutes } = require('./routes/engineChannelRoutes');
 const { createPackTagRoutes } = require('./routes/packTagRoutes');
 const { createPresetRoutes } = require('./routes/presetRoutes');
+const { createTokenRoutes } = require('./routes/tokenRoutes');
 
 const isTest = () => process.env.NODE_ENV === 'test';
 const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 5, standardHeaders: true, legacyHeaders: false, skip: isTest });
 const registerLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 3, standardHeaders: true, legacyHeaders: false, skip: isTest });
 const changePasswordLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 5, standardHeaders: true, legacyHeaders: false, skip: isTest });
 const refreshLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 30, standardHeaders: true, legacyHeaders: false, skip: isTest });
+const tokenLimiter = rateLimit({ windowMs: 60 * 1000, max: 60, standardHeaders: true, legacyHeaders: false, skip: isTest });
 const publishLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 20, standardHeaders: true, legacyHeaders: false, skip: isTest });
 const globalLimiter = rateLimit({ windowMs: 60 * 1000, max: 120, standardHeaders: true, legacyHeaders: false, skip: isTest });
 
@@ -61,6 +63,8 @@ function createApp({ db, dataDir, config, metrics }) {
     app.use('/v1/auth/change-password', changePasswordLimiter);
     app.use('/v1/auth/refresh', refreshLimiter);
     app.use('/v1/auth', createAuthRoutes(db));
+    app.use('/v1/token', tokenLimiter);
+    app.use('/v1', createTokenRoutes(db));
     app.use('/v1', createPackTagRoutes(db));
     app.use('/v1', createPackageRoutes(db, dataDir, metrics));
     app.use('/v1/publish', publishLimiter);
