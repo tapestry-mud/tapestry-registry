@@ -116,18 +116,11 @@ access tokens expire on their own within 15 minutes.
 
 ---
 
-## CI Token
+## Engine-Channel CI Auth (OIDC)
 
-The `ci` account (handle: `ci`, admin) is used by [tapestry-public](https://github.com/tapestry-mud/tapestry-public) CI to register engine channels after each Docker push. Its JWT is stored as `REGISTRY_CI_TOKEN` in GitHub Actions secrets.
+Engine-channel registration — nightly (`build.yml`) and stable (`promote.yml`) in the engine repo — authenticates via **GitHub Actions OIDC**, not a stored secret. The workflow requests an id-token and sends it as the bearer to `PATCH /v1/admin/engine-channels/{channel}`; the registry verifies it (`requireCIAuth` → `verifyOIDC`) against GitHub's JWKS and the `OIDC_ALLOWED_REPOS` allowlist. There is **no `REGISTRY_CI_TOKEN` and no `ci` account** — both were removed in the 2026-05-29 auth redesign.
 
-To rotate (e.g., when the 1-year JWT expires):
-
-```bash
-docker exec tapestry-registry sh -c \
-  'JWT_SECRET=<secret> DB_PATH=/data/registry.db node /app/scripts/bootstrap-ci-account.js'
-```
-
-Copy the printed token and update the `REGISTRY_CI_TOKEN` secret in tapestry-public.
+To authorize a repository to register channels, add its `owner/repo` to the comma-separated `OIDC_ALLOWED_REPOS` env var on the registry container.
 
 ---
 
