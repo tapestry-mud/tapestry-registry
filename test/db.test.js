@@ -62,3 +62,38 @@ test('engine_channels channel is primary key (no duplicates)', () => {
     db.prepare(`INSERT INTO engine_channels (channel, docker_tag, version) VALUES ('nightly', 'x', 'x')`).run();
   }).toThrow(/UNIQUE/);
 });
+
+describe('auth-model tables', () => {
+  let db;
+  beforeEach(() => { db = initDb(':memory:'); });
+  afterEach(() => { db.close(); });
+
+  test('trusted_publishers table exists with expected columns', () => {
+    const cols = db.pragma('table_info(trusted_publishers)').map(c => c.name);
+    expect(cols).toEqual(expect.arrayContaining(
+      ['id', 'scope', 'repo', 'ref', 'environment', 'created_by_handle', 'created_at']
+    ));
+  });
+
+  test('refresh_tokens table exists with expected columns', () => {
+    const cols = db.pragma('table_info(refresh_tokens)').map(c => c.name);
+    expect(cols).toEqual(expect.arrayContaining(
+      ['id', 'account_id', 'token_hash', 'expires_at', 'created_at', 'revoked_at']
+    ));
+  });
+
+  test('seeds the tapestry -> tapestry-mud/tapestry-packs binding', () => {
+    const row = db.prepare(
+      `SELECT scope, repo, ref, environment, created_by_handle FROM trusted_publishers WHERE scope = 'tapestry'`
+    ).get();
+    expect(row).toMatchObject({
+      scope: 'tapestry', repo: 'tapestry-mud/tapestry-packs',
+      ref: null, environment: null, created_by_handle: 'system',
+    });
+  });
+
+  test('seed is idempotent across re-init of the same db file', () => {
+    const count = db.prepare(`SELECT COUNT(*) c FROM trusted_publishers WHERE scope = 'tapestry'`).get().c;
+    expect(count).toBe(1);
+  });
+});

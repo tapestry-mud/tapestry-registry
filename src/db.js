@@ -66,12 +66,37 @@ function initDb(dbPath = ':memory:') {
       packs          TEXT NOT NULL,
       updated_at     TEXT NOT NULL DEFAULT (datetime('now'))
     );
+
+    CREATE TABLE IF NOT EXISTS trusted_publishers (
+      id                INTEGER PRIMARY KEY AUTOINCREMENT,
+      scope             TEXT    NOT NULL,
+      repo              TEXT    NOT NULL,
+      ref               TEXT,
+      environment       TEXT,
+      created_by_handle TEXT    NOT NULL,
+      created_at        TEXT    NOT NULL DEFAULT (datetime('now')),
+      UNIQUE(scope, repo)
+    );
+
+    CREATE TABLE IF NOT EXISTS refresh_tokens (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      account_id  INTEGER NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+      token_hash  TEXT    NOT NULL,
+      expires_at  TEXT    NOT NULL,
+      created_at  TEXT    NOT NULL DEFAULT (datetime('now')),
+      revoked_at  TEXT
+    );
   `);
 
   db.prepare(
     `INSERT OR IGNORE INTO presets (name, version, engine_channel, packs)
      VALUES ('starter', '0.0.1', 'stable', ?)`
   ).run(JSON.stringify({ '@tapestry/core': '0.0.2', '@tapestry/example-pack': '0.0.2' }));
+
+  db.prepare(
+    `INSERT OR IGNORE INTO trusted_publishers (scope, repo, ref, environment, created_by_handle)
+     VALUES ('tapestry', 'tapestry-mud/tapestry-packs', NULL, NULL, 'system')`
+  ).run();
 
   const hasPrivateCol = db.pragma('table_info(packages)').some(c => c.name === 'is_private');
   if (!hasPrivateCol) {
