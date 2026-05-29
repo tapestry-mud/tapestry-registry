@@ -5,6 +5,11 @@ const bcrypt = require('bcryptjs');
 const { initDb } = require('../src/db');
 const { createApp } = require('../src/server');
 const { loadConfig } = require('../src/config');
+const { signAccessToken } = require('../src/auth');
+
+function signAccess({ sub, scopes, admin = false, kind = 'human' } = {}) {
+  return signAccessToken({ sub, kind, scopes: scopes || [sub], admin });
+}
 
 function createTestApp({ config = loadConfig('/nonexistent'), metrics = null } = {}) {
   const db = initDb(':memory:');
@@ -54,4 +59,4 @@ function seedPackage(db, {
   return { scope, name, version, packageId };
 }
 
-module.exports = { createTestApp, cleanupTestApp, seedAccount, seedPackage };
+module.exports = { createTestApp, cleanupTestApp, seedAccount, seedPackage, signAccess };
