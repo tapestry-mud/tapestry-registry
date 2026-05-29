@@ -18,11 +18,11 @@ function createUnpublishRoutes(db, dataDir) {
       return res.status(404).json({ error: `Package @${scope}/${name} not found` });
     }
 
-    if (pkg.owner_handle !== req.user.handle) {
+    if (pkg.owner_handle !== req.user.sub) {
       if (!force) {
         return res.status(403).json({ error: 'not the package owner' });
       }
-      const account = db.prepare(`SELECT is_admin FROM accounts WHERE handle = ?`).get(req.user.handle);
+      const account = db.prepare(`SELECT is_admin FROM accounts WHERE handle = ?`).get(req.user.sub);
       if (!account?.is_admin) {
         return res.status(403).json({ error: 'not the package owner' });
       }
@@ -59,11 +59,11 @@ function createUnpublishRoutes(db, dataDir) {
       return res.status(404).json({ error: `Package @${scope}/${name} not found` });
     }
 
-    if (pkg.owner_handle !== req.user.handle) {
+    if (pkg.owner_handle !== req.user.sub) {
       if (!force) {
         return res.status(403).json({ error: 'not the package owner' });
       }
-      const account = db.prepare(`SELECT is_admin FROM accounts WHERE handle = ?`).get(req.user.handle);
+      const account = db.prepare(`SELECT is_admin FROM accounts WHERE handle = ?`).get(req.user.sub);
       if (!account?.is_admin) {
         return res.status(403).json({ error: 'not the package owner' });
       }

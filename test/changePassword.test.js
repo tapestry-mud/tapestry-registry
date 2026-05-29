@@ -13,7 +13,7 @@ describe('POST /v1/auth/change-password', () => {
       email: 'test@example.com',
       password: 'password',
     });
-    token = res.body.token;
+    token = res.body.access_token;
   });
 
   test('changes password with valid current password', async () => {
@@ -35,7 +35,7 @@ describe('POST /v1/auth/change-password', () => {
       password: 'newpass123',
     });
     expect(loginRes.status).toBe(200);
-    expect(loginRes.body.token).toBeDefined();
+    expect(loginRes.body.access_token).toBeDefined();
   });
 
   test('rejects wrong current password', async () => {

@@ -27,7 +27,7 @@ function createPresetRoutes(db) {
   });
 
   router.patch('/admin/presets/:name', requireAuth, (req, res) => {
-    const user = db.prepare(`SELECT is_admin FROM accounts WHERE handle = ?`).get(req.user.handle);
+    const user = db.prepare(`SELECT is_admin FROM accounts WHERE handle = ?`).get(req.user.sub);
     if (!user?.is_admin) {
       return res.status(403).json({ error: 'admin access required' });
     }
@@ -43,7 +43,7 @@ function createPresetRoutes(db) {
   });
 
   router.delete('/admin/presets/:name', requireAuth, (req, res) => {
-    const user = db.prepare(`SELECT is_admin FROM accounts WHERE handle = ?`).get(req.user.handle);
+    const user = db.prepare(`SELECT is_admin FROM accounts WHERE handle = ?`).get(req.user.sub);
     if (!user?.is_admin) {
       return res.status(403).json({ error: 'admin access required' });
     }

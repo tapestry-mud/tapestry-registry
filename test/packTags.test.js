@@ -14,7 +14,7 @@ afterEach(() => cleanupTestApp({ db, dataDir }));
 
 async function loginAs(email) {
   const r = await request(app).post('/v1/auth/login').send({ email, password: 'password' });
-  return r.body.token;
+  return r.body.access_token;
 }
 
 describe('GET /v1/packages/@:scope/:name/dist-tags', () => {
@@ -61,7 +61,7 @@ describe('PATCH /v1/packages/@:scope/:name/dist-tags/:tag', () => {
     const r = await request(app).post('/v1/auth/login').send({ email: 'other@example.com', password: 'password' });
     const res = await request(app)
       .patch('/v1/packages/@tapestry/core/dist-tags/stable')
-      .set('Authorization', `Bearer ${r.body.token}`)
+      .set('Authorization', `Bearer ${r.body.access_token}`)
       .send({ version: '1.0.0' });
     expect(res.status).toBe(403);
   });

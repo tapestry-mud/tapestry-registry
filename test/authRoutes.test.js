@@ -1,19 +1,21 @@
 const request = require('supertest');
 const { createTestApp, cleanupTestApp } = require('./helpers');
+const { verifyToken } = require('../src/auth');
 
 let app, db, dataDir;
 beforeEach(() => { ({ app, db, dataDir } = createTestApp()); });
 afterEach(() => cleanupTestApp({ db, dataDir }));
 
 describe('POST /v1/auth/register', () => {
-  test('creates account and returns JWT', async () => {
+  test('creates account and returns access+refresh', async () => {
     const res = await request(app).post('/v1/auth/register').send({
       handle: 'mallek',
       email: 'mallek@example.com',
       password: 'hunter2',
     });
     expect(res.status).toBe(201);
-    expect(res.body.token).toBeDefined();
+    expect(res.body.access_token).toBeDefined();
+    expect(res.body.refresh_token).toBeDefined();
   });
 
   test('rejects duplicate handle', async () => {
@@ -62,12 +64,26 @@ describe('POST /v1/auth/login', () => {
     });
   });
 
-  test('returns JWT on valid credentials', async () => {
+  test('returns access+refresh on valid credentials', async () => {
     const res = await request(app).post('/v1/auth/login').send({
       email: 'mallek@example.com', password: 'hunter2',
     });
     expect(res.status).toBe(200);
-    expect(res.body.token).toBeDefined();
+    expect(res.body.access_token).toBeDefined();
+    expect(res.body.refresh_token).toBeDefined();
+  });
+
+  test('login creates a refresh_tokens row and a human access token', async () => {
+    const countRows = () => db.prepare(
+      `SELECT COUNT(*) c FROM refresh_tokens rt JOIN accounts a ON a.id = rt.account_id WHERE a.handle = 'mallek'`
+    ).get().c;
+    const before = countRows();
+    const res = await request(app).post('/v1/auth/login').send({
+      email: 'mallek@example.com', password: 'hunter2',
+    });
+    const decoded = verifyToken(res.body.access_token);
+    expect(decoded).toMatchObject({ sub: 'mallek', kind: 'human', scopes: ['mallek'], admin: false });
+    expect(countRows()).toBe(before + 1);
   });
 
   test('rejects wrong password', async () => {

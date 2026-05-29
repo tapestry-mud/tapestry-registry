@@ -30,8 +30,8 @@ function createPackTagRoutes(db) {
     if (!pkg) {
       return res.status(404).json({ error: `Package @${scope}/${name} not found` });
     }
-    const user = db.prepare(`SELECT is_admin FROM accounts WHERE handle = ?`).get(req.user.handle);
-    if (pkg.owner_handle !== req.user.handle && !user?.is_admin) {
+    const user = db.prepare(`SELECT is_admin FROM accounts WHERE handle = ?`).get(req.user.sub);
+    if (pkg.owner_handle !== req.user.sub && !user?.is_admin) {
       return res.status(403).json({ error: 'not authorized to set tags on this package' });
     }
     const versionExists = db.prepare(`SELECT id FROM versions WHERE package_id = ? AND version = ?`).get(pkg.id, version);

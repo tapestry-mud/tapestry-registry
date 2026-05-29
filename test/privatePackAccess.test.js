@@ -22,7 +22,7 @@ afterEach(() => cleanupTestApp({ db, dataDir }));
 
 async function loginAs(email) {
   const r = await request(app).post('/v1/auth/login').send({ email, password: 'password' });
-  return r.body.token;
+  return r.body.access_token;
 }
 
 describe('private pack metadata - GET /v1/packages/@:scope/:name', () => {

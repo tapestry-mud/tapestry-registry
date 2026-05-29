@@ -1,7 +1,25 @@
 const express = require('express');
-const { hashPassword, comparePassword, signToken, requireAuth } = require('../auth');
+const {
+  hashPassword, comparePassword, requireAuth,
+  signAccessToken, generateRefreshToken, hashRefreshToken, REFRESH_TTL_DAYS,
+} = require('../auth');
 
 const RESERVED_HANDLES = ['tapestry', 'core', 'admin', 'system', 'official'];
+
+function issueSession(db, account) {
+  const access = signAccessToken({
+    sub: account.handle,
+    kind: 'human',
+    scopes: [account.handle],
+    admin: !!account.is_admin,
+  });
+  const refresh = generateRefreshToken();
+  db.prepare(
+    `INSERT INTO refresh_tokens (account_id, token_hash, expires_at)
+     VALUES (?, ?, datetime('now', ?))`
+  ).run(account.id, hashRefreshToken(refresh), `+${REFRESH_TTL_DAYS} days`);
+  return { access_token: access, refresh_token: refresh };
+}
 
 function createAuthRoutes(db) {
   const router = express.Router();
@@ -19,8 +37,11 @@ function createAuthRoutes(db) {
     }
     try {
       const passwordHash = await hashPassword(password);
-      db.prepare(`INSERT INTO accounts (handle, email, password_hash) VALUES (?, ?, ?)`).run(handle, email, passwordHash);
-      res.status(201).json({ token: signToken({ handle, email }) });
+      const info = db.prepare(
+        `INSERT INTO accounts (handle, email, password_hash) VALUES (?, ?, ?)`
+      ).run(handle, email, passwordHash);
+      const account = db.prepare(`SELECT id, handle, is_admin FROM accounts WHERE id = ?`).get(info.lastInsertRowid);
+      res.status(201).json(issueSession(db, account));
     } catch (err) {
       if (err.message.includes('UNIQUE constraint failed')) {
         return res.status(409).json({ error: 'handle or email already taken' });
@@ -39,7 +60,7 @@ function createAuthRoutes(db) {
       if (!account || !(await comparePassword(password, account.password_hash))) {
         return res.status(401).json({ error: 'invalid credentials' });
       }
-      res.json({ token: signToken({ handle: account.handle, email: account.email }) });
+      res.json(issueSession(db, account));
     } catch (err) {
       res.status(500).json({ error: 'login failed' });
     }
@@ -51,12 +72,12 @@ function createAuthRoutes(db) {
       return res.status(400).json({ error: 'currentPassword and newPassword are required' });
     }
     try {
-      const account = db.prepare(`SELECT * FROM accounts WHERE handle = ?`).get(req.user.handle);
+      const account = db.prepare(`SELECT * FROM accounts WHERE handle = ?`).get(req.user.sub);
       if (!account || !(await comparePassword(currentPassword, account.password_hash))) {
         return res.status(401).json({ error: 'current password is incorrect' });
       }
       const newHash = await hashPassword(newPassword);
-      db.prepare(`UPDATE accounts SET password_hash = ? WHERE handle = ?`).run(newHash, req.user.handle);
+      db.prepare(`UPDATE accounts SET password_hash = ? WHERE handle = ?`).run(newHash, req.user.sub);
       res.json({ message: 'Password updated' });
     } catch (err) {
       res.status(500).json({ error: 'password update failed' });
@@ -66,4 +87,4 @@ function createAuthRoutes(db) {
   return router;
 }
 
-module.exports = { createAuthRoutes };
+module.exports = { createAuthRoutes, issueSession };

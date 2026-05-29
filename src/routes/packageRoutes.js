@@ -9,7 +9,7 @@ function resolveOptionalUser(req, db) {
   if (!auth || !auth.startsWith('Bearer ')) { return null; }
   try {
     const payload = verifyToken(auth.slice(7));
-    return db.prepare(`SELECT handle, is_admin FROM accounts WHERE handle = ?`).get(payload.handle);
+    return db.prepare(`SELECT handle, is_admin FROM accounts WHERE handle = ?`).get(payload.sub);
   } catch {
     return null;
   }

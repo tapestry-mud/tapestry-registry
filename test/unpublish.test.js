@@ -11,7 +11,7 @@ beforeEach(async () => {
     email: 'owner@example.com',
     password: 'password',
   });
-  token = res.body.token;
+  token = res.body.access_token;
 });
 afterEach(() => cleanupTestApp({ db, dataDir }));
 
@@ -101,7 +101,7 @@ describe('DELETE /v1/packages/@:scope/:name/:version', () => {
 
     const res = await request(app)
       .delete('/v1/packages/@owner/mypkg/1.0.0')
-      .set('Authorization', `Bearer ${otherLogin.body.token}`);
+      .set('Authorization', `Bearer ${otherLogin.body.access_token}`);
     expect(res.status).toBe(403);
   });
 
@@ -156,7 +156,7 @@ describe('DELETE /v1/packages/@:scope/:name', () => {
 
     const res = await request(app)
       .delete('/v1/packages/@owner/mypkg')
-      .set('Authorization', `Bearer ${otherLogin.body.token}`);
+      .set('Authorization', `Bearer ${otherLogin.body.access_token}`);
     expect(res.status).toBe(403);
   });
 });
@@ -170,7 +170,7 @@ describe('Admin --force bypass', () => {
       email: 'admin@example.com',
       password: 'password',
     });
-    adminToken = res.body.token;
+    adminToken = res.body.access_token;
   });
 
   test('admin with force=true can delete a version they do not own', async () => {
@@ -201,7 +201,7 @@ describe('Admin --force bypass', () => {
 
     const res = await request(app)
       .delete('/v1/packages/@owner/mypkg/1.0.0?force=true')
-      .set('Authorization', `Bearer ${regularLogin.body.token}`);
+      .set('Authorization', `Bearer ${regularLogin.body.access_token}`);
     expect(res.status).toBe(403);
   });
 });
