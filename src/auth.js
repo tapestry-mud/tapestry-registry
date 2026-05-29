@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 
 const JWT_SECRET = process.env.JWT_SECRET || (process.env.NODE_ENV === 'test' ? 'test-secret' : null);
 if (!JWT_SECRET) {
@@ -7,8 +8,27 @@ if (!JWT_SECRET) {
 }
 const BCRYPT_ROUNDS = process.env.NODE_ENV === 'test' ? 1 : 10;
 
+const ACCESS_TTL_SECONDS = 15 * 60;
+const REFRESH_TTL_DAYS = 30;
+
 function signToken(payload) {
   return jwt.sign(payload, JWT_SECRET, { expiresIn: '30d' });
+}
+
+function signAccessToken({ sub, kind, scopes, admin }) {
+  return jwt.sign(
+    { sub, kind, scopes, admin: !!admin },
+    JWT_SECRET,
+    { expiresIn: ACCESS_TTL_SECONDS }
+  );
+}
+
+function generateRefreshToken() {
+  return crypto.randomBytes(32).toString('base64url');
+}
+
+function hashRefreshToken(raw) {
+  return crypto.createHash('sha256').update(raw).digest('hex');
 }
 
 function verifyToken(token) {
@@ -36,4 +56,8 @@ function requireAuth(req, res, next) {
   }
 }
 
-module.exports = { signToken, verifyToken, hashPassword, comparePassword, requireAuth };
+module.exports = {
+  signToken, verifyToken, hashPassword, comparePassword, requireAuth,
+  signAccessToken, generateRefreshToken, hashRefreshToken,
+  ACCESS_TTL_SECONDS, REFRESH_TTL_DAYS,
+};
