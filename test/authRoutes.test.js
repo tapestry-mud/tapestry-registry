@@ -100,3 +100,58 @@ describe('POST /v1/auth/login', () => {
     expect(res.status).toBe(401);
   });
 });
+
+async function loginRefresher() {
+  await request(app).post('/v1/auth/register').send({
+    handle: 'refresher', email: 'r@example.com', password: 'hunter2',
+  });
+  const res = await request(app).post('/v1/auth/login').send({ email: 'r@example.com', password: 'hunter2' });
+  return res.body; // { access_token, refresh_token }
+}
+
+describe('POST /v1/auth/refresh', () => {
+  test('rotates: returns a new access+refresh and revokes the old refresh', async () => {
+    const s = await loginRefresher();
+    const res = await request(app).post('/v1/auth/refresh').send({ refresh_token: s.refresh_token });
+    expect(res.status).toBe(200);
+    expect(res.body.access_token).toBeDefined();
+    expect(res.body.refresh_token).toBeDefined();
+    expect(res.body.refresh_token).not.toBe(s.refresh_token);
+    expect(verifyToken(res.body.access_token).sub).toBe('refresher');
+  });
+
+  test('rejects an unknown refresh token', async () => {
+    const res = await request(app).post('/v1/auth/refresh').send({ refresh_token: 'nope' });
+    expect(res.status).toBe(401);
+  });
+
+  test('reuse of a rotated (revoked) token revokes the whole chain', async () => {
+    const s = await loginRefresher();
+    await request(app).post('/v1/auth/refresh').send({ refresh_token: s.refresh_token }); // rotate once
+    // present the OLD (now revoked) token again -> theft
+    const reuse = await request(app).post('/v1/auth/refresh').send({ refresh_token: s.refresh_token });
+    expect(reuse.status).toBe(401);
+    expect(reuse.body.error).toMatch(/reuse/i);
+    // all of this account's refresh rows are now revoked
+    const live = db.prepare(
+      `SELECT COUNT(*) c FROM refresh_tokens rt JOIN accounts a ON a.id = rt.account_id
+       WHERE a.handle = 'refresher' AND rt.revoked_at IS NULL`
+    ).get().c;
+    expect(live).toBe(0);
+  });
+});
+
+describe('POST /v1/auth/logout', () => {
+  test('revokes the presented refresh token', async () => {
+    const s = await loginRefresher();
+    const res = await request(app).post('/v1/auth/logout').send({ refresh_token: s.refresh_token });
+    expect(res.status).toBe(200);
+    const after = await request(app).post('/v1/auth/refresh').send({ refresh_token: s.refresh_token });
+    expect(after.status).toBe(401);
+  });
+
+  test('logout is idempotent / safe for an unknown token', async () => {
+    const res = await request(app).post('/v1/auth/logout').send({ refresh_token: 'whatever' });
+    expect(res.status).toBe(200);
+  });
+});

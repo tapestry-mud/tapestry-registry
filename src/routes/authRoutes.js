@@ -84,6 +84,45 @@ function createAuthRoutes(db) {
     }
   });
 
+  router.post('/refresh', (req, res) => {
+    const { refresh_token: raw } = req.body || {};
+    if (!raw) {
+      return res.status(400).json({ error: 'refresh_token is required' });
+    }
+    const row = db.prepare(`SELECT * FROM refresh_tokens WHERE token_hash = ?`).get(hashRefreshToken(raw));
+    if (!row) {
+      return res.status(401).json({ error: 'invalid refresh token' });
+    }
+    if (row.revoked_at) {
+      // Reuse of an already-revoked token => theft. Revoke the entire chain.
+      db.prepare(
+        `UPDATE refresh_tokens SET revoked_at = datetime('now') WHERE account_id = ? AND revoked_at IS NULL`
+      ).run(row.account_id);
+      return res.status(401).json({ error: 'refresh token reuse detected; session revoked' });
+    }
+    const expired = db.prepare(`SELECT (expires_at <= datetime('now')) AS x FROM refresh_tokens WHERE id = ?`).get(row.id).x;
+    if (expired) {
+      return res.status(401).json({ error: 'refresh token expired' });
+    }
+    const account = db.prepare(`SELECT id, handle, is_admin FROM accounts WHERE id = ?`).get(row.account_id);
+    if (!account) {
+      return res.status(401).json({ error: 'invalid refresh token' });
+    }
+    // Rotate: revoke the presented row, then issue a fresh session.
+    db.prepare(`UPDATE refresh_tokens SET revoked_at = datetime('now') WHERE id = ?`).run(row.id);
+    res.json(issueSession(db, account));
+  });
+
+  router.post('/logout', (req, res) => {
+    const { refresh_token: raw } = req.body || {};
+    if (raw) {
+      db.prepare(
+        `UPDATE refresh_tokens SET revoked_at = datetime('now') WHERE token_hash = ? AND revoked_at IS NULL`
+      ).run(hashRefreshToken(raw));
+    }
+    res.json({ message: 'logged out' });
+  });
+
   return router;
 }
 
