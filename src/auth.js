@@ -11,10 +11,6 @@ const BCRYPT_ROUNDS = process.env.NODE_ENV === 'test' ? 1 : 10;
 const ACCESS_TTL_SECONDS = 15 * 60;
 const REFRESH_TTL_DAYS = 30;
 
-function signToken(payload) {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: '30d' });
-}
-
 function signAccessToken({ sub, kind, scopes, admin }) {
   return jwt.sign(
     { sub, kind, scopes, admin: !!admin },
@@ -57,7 +53,7 @@ function requireAuth(req, res, next) {
 }
 
 module.exports = {
-  signToken, verifyToken, hashPassword, comparePassword, requireAuth,
+  verifyToken, hashPassword, comparePassword, requireAuth,
   signAccessToken, generateRefreshToken, hashRefreshToken,
   ACCESS_TTL_SECONDS, REFRESH_TTL_DAYS,
 };

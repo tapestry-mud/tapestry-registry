@@ -1,5 +1,5 @@
 const {
-  signToken, verifyToken, hashPassword, comparePassword, requireAuth,
+  verifyToken, hashPassword, comparePassword, requireAuth,
   signAccessToken, generateRefreshToken, hashRefreshToken,
 } = require('../src/auth');
 const express = require('express');
@@ -41,15 +41,8 @@ describe('refresh token helpers', () => {
   });
 });
 
-test('signToken / verifyToken round-trip', () => {
-  const token = signToken({ handle: 'mallek', email: 'mallek@example.com' });
-  const payload = verifyToken(token);
-  expect(payload.handle).toBe('mallek');
-  expect(payload.email).toBe('mallek@example.com');
-});
-
 test('verifyToken throws on tampered token', () => {
-  const token = signToken({ handle: 'mallek' });
+  const token = signAccessToken({ sub: 'mallek', kind: 'human', scopes: ['mallek'], admin: false });
   expect(() => verifyToken(token + 'tampered')).toThrow();
 });
 
@@ -64,7 +57,7 @@ describe('requireAuth middleware', () => {
   beforeEach(() => {
     app = express();
     app.get('/protected', requireAuth, (req, res) => {
-      res.json({ handle: req.user.handle });
+      res.json({ sub: req.user.sub });
     });
   });
 
@@ -79,9 +72,9 @@ describe('requireAuth middleware', () => {
   });
 
   test('accepts request with valid token', async () => {
-    const token = signToken({ handle: 'mallek', email: 'mallek@example.com' });
+    const token = signAccessToken({ sub: 'mallek', kind: 'human', scopes: ['mallek'], admin: false });
     const res = await request(app).get('/protected').set('Authorization', `Bearer ${token}`);
     expect(res.status).toBe(200);
-    expect(res.body.handle).toBe('mallek');
+    expect(res.body.sub).toBe('mallek');
   });
 });

@@ -82,8 +82,7 @@ describe('checkPublishLimits', () => {
 const request = require('supertest');
 const path = require('path');
 const fs = require('fs');
-const { createTestApp, cleanupTestApp, seedAccount } = require('./helpers');
-const { signToken } = require('../src/auth');
+const { createTestApp, cleanupTestApp, seedAccount, signAccess } = require('./helpers');
 
 describe('POST /v1/publish', () => {
   let publishApp, publishDb, publishDataDir, token;
@@ -91,7 +90,7 @@ describe('POST /v1/publish', () => {
   beforeEach(() => {
     ({ app: publishApp, db: publishDb, dataDir: publishDataDir } = createTestApp());
     seedAccount(publishDb, { handle: 'mallek', email: 'mallek@example.com' });
-    token = signToken({ handle: 'mallek', email: 'mallek@example.com' });
+    token = signAccess({ sub: 'mallek' });
   });
   afterEach(() => cleanupTestApp({ db: publishDb, dataDir: publishDataDir }));
 
@@ -221,6 +220,54 @@ describe('POST /v1/publish', () => {
     const files = fs.existsSync(tgzDir) ? fs.readdirSync(tgzDir) : [];
     expect(files.filter(f => f.endsWith('.tmp'))).toHaveLength(0);
   });
+
+  test('admin token may publish to any scope', async () => {
+    const adminTok = signAccess({ sub: 'root', admin: true, scopes: ['root'] });
+    const res = await request(publishApp)
+      .post('/v1/publish')
+      .set('Authorization', `Bearer ${adminTok}`)
+      .attach('tarball', Buffer.from('fake-tarball'), 'package.tgz')
+      .field('metadata', makeManifest({ name: '@tapestry/admintest' }));
+    expect(res.status).toBe(201);
+  });
+
+  test('a ci-scoped token may publish to its scope', async () => {
+    const ciTok = signAccess({ sub: 'tapestry', kind: 'ci', scopes: ['tapestry'] });
+    const res = await request(publishApp)
+      .post('/v1/publish')
+      .set('Authorization', `Bearer ${ciTok}`)
+      .attach('tarball', Buffer.from('fake-tarball'), 'package.tgz')
+      .field('metadata', makeManifest({ name: '@tapestry/citest' }));
+    expect(res.status).toBe(201);
+  });
+
+  test('optional tag field upserts that dist-tag in addition to latest', async () => {
+    await request(publishApp)
+      .post('/v1/publish')
+      .set('Authorization', `Bearer ${token}`)
+      .attach('tarball', Buffer.from('fake-tarball'), 'package.tgz')
+      .field('metadata', makeManifest())
+      .field('tag', 'stable');
+    const stable = publishDb.prepare(
+      `SELECT version FROM pack_tags WHERE scope = 'mallek' AND name = 'testpkg' AND tag = 'stable'`
+    ).get();
+    expect(stable).toMatchObject({ version: '1.0.0' });
+    const latest = publishDb.prepare(
+      `SELECT version FROM pack_tags WHERE scope = 'mallek' AND name = 'testpkg' AND tag = 'latest'`
+    ).get();
+    expect(latest).toMatchObject({ version: '1.0.0' });
+  });
+
+  test('rejects an invalid tag string', async () => {
+    const res = await request(publishApp)
+      .post('/v1/publish')
+      .set('Authorization', `Bearer ${token}`)
+      .attach('tarball', Buffer.from('fake-tarball'), 'package.tgz')
+      .field('metadata', makeManifest())
+      .field('tag', '../evil');
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/tag/i);
+  });
 });
 
 describe('publish auto-tags latest and reads private flag', () => {
@@ -252,7 +299,7 @@ describe('publish auto-tags latest and reads private flag', () => {
   };
 
   test('auto-upserts latest dist-tag after successful publish', async () => {
-    const token = signToken({ handle: 'publisher' });
+    const token = signAccess({ sub: 'publisher' });
     const form = buildPublishForm(baseMeta);
     const res = await request(pubApp)
       .post('/v1/publish')
@@ -269,7 +316,7 @@ describe('publish auto-tags latest and reads private flag', () => {
   });
 
   test('is_private set to 1 when manifest has private: true', async () => {
-    const token = signToken({ handle: 'publisher' });
+    const token = signAccess({ sub: 'publisher' });
     const form = buildPublishForm({ ...baseMeta, name: '@publisher/private-pkg', private: true });
     await request(pubApp)
       .post('/v1/publish')
@@ -282,7 +329,7 @@ describe('publish auto-tags latest and reads private flag', () => {
   });
 
   test('is_private defaults to 0 when private not in manifest', async () => {
-    const token = signToken({ handle: 'publisher' });
+    const token = signAccess({ sub: 'publisher' });
     const form = buildPublishForm(baseMeta);
     await request(pubApp)
       .post('/v1/publish')

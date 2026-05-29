@@ -92,10 +92,15 @@ function createPublishRoutes(db, dataDir, config, metrics) {
       return res.status(400).json({ error: err.message });
     }
 
-    // Scope ownership: user's handle must match scope, or user is admin
-    const account = db.prepare(`SELECT is_admin FROM accounts WHERE handle = ?`).get(req.user.handle);
-    if (scope !== req.user.handle && !account?.is_admin) {
-      return res.status(403).json({ error: `scope @${scope} is not owned by @${req.user.handle}` });
+    // Authorization: requested scope must be in the token's scopes, or the token is admin.
+    if (!Array.isArray(req.user.scopes) || (!req.user.scopes.includes(scope) && !req.user.admin)) {
+      return res.status(403).json({ error: `not authorized to publish to scope @${scope}` });
+    }
+
+    const TAG_RE = /^[a-z0-9][a-z0-9._-]*$/i;
+    const extraTag = req.body.tag;
+    if (extraTag !== undefined && (typeof extraTag !== 'string' || !TAG_RE.test(extraTag))) {
+      return res.status(400).json({ error: `invalid tag: ${extraTag}` });
     }
 
     const tarball = req.file.buffer;
@@ -111,8 +116,9 @@ function createPublishRoutes(db, dataDir, config, metrics) {
     const tmpPath = path.join(tgzDir, `${manifest.version}.tgz.tmp`);
 
     // DB first, then write tarball — no orphans on crash
+    // Scope owns the package (convention: handle == scope). Works for human + CI + admin-cross-publish.
     const isPrivate = manifest.private === true ? 1 : 0;
-    db.prepare(`INSERT OR IGNORE INTO packages (scope, name, owner_handle, is_private) VALUES (?, ?, ?, ?)`).run(scope, name, req.user.handle, isPrivate);
+    db.prepare(`INSERT OR IGNORE INTO packages (scope, name, owner_handle, is_private) VALUES (?, ?, ?, ?)`).run(scope, name, scope, isPrivate);
     const pkg = db.prepare(`SELECT id FROM packages WHERE scope = ? AND name = ?`).get(scope, name);
 
     try {
@@ -136,6 +142,13 @@ function createPublishRoutes(db, dataDir, config, metrics) {
       `INSERT OR REPLACE INTO pack_tags (scope, name, tag, version, updated_at)
        VALUES (?, ?, 'latest', ?, datetime('now'))`
     ).run(scope, name, manifest.version);
+
+    if (extraTag && extraTag !== 'latest') {
+      db.prepare(
+        `INSERT OR REPLACE INTO pack_tags (scope, name, tag, version, updated_at)
+         VALUES (?, ?, ?, ?, datetime('now'))`
+      ).run(scope, name, extraTag, manifest.version);
+    }
 
     if (metrics) {
       metrics.publishes.inc({ scope: `@${scope}`, name });
