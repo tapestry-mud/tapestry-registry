@@ -88,6 +88,7 @@ function createPackageRoutes(db, dataDir, metrics) {
       name: `@${scope}/${name}`,
       owner: pkg.owner_handle,
       dist_tags,
+      totalDownloads: versions.reduce((sum, v) => sum + v.downloads, 0),
       versions: versions.map(v => {
         let manifest;
         try {

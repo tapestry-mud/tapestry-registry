@@ -60,6 +60,21 @@ describe('GET /v1/packages/@:scope/:name', () => {
     const res = await request(app).get('/v1/packages/@tapestry/nonexistent');
     expect(res.status).toBe(404);
   });
+
+  test('returns totalDownloads summed across all versions, with per-version counts intact', async () => {
+    const latestDownloads = 7;
+    const priorDownloads = 5;
+    db.prepare(`UPDATE versions SET downloads = ? WHERE version = '1.0.0' AND package_id = (
+      SELECT id FROM packages WHERE scope = 'tapestry' AND name = 'weather')`).run(latestDownloads);
+    db.prepare(`UPDATE versions SET downloads = ? WHERE version = '0.9.0' AND package_id = (
+      SELECT id FROM packages WHERE scope = 'tapestry' AND name = 'weather')`).run(priorDownloads);
+
+    const res = await request(app).get('/v1/packages/@tapestry/weather');
+    expect(res.status).toBe(200);
+    expect(res.body.totalDownloads).toBe(latestDownloads + priorDownloads);
+    expect(res.body.versions.find(v => v.version === '1.0.0').downloads).toBe(latestDownloads);
+    expect(res.body.versions.find(v => v.version === '0.9.0').downloads).toBe(priorDownloads);
+  });
 });
 
 const fs = require('fs');
