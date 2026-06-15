@@ -1,15 +1,29 @@
+---
+capability: validation-ledger
+last-updated: 2026-06-13
+---
+
 # Validation ledger -- tapestry-registry specs
 
-Adjudication record for `/backfill-specs` Validate mode. Read this before judging anything;
-never re-report a finding that already has a verdict here unless new evidence names why the
-verdict was wrong. One line per finding: date, file, finding, verdict
-(fixed / below-bar / not-real), and a one-line why.
+## Overview
+
+Adjudication record for the `/backfill-specs` Validate pass that produced the initial
+capability specs for this repository. Read this before judging any finding; never re-report
+a finding that already has a verdict here unless new evidence names why the verdict was wrong.
+One line per finding: date, file, finding, verdict (fixed / below-bar / not-real), why.
 
 Severity floor: BLOCKER = an anchor that does not support its claim, a wrong behavior
 statement, a visibility leak, or a contract lint failure (a file with no anchors in its
 Behavior section). Everything else is BELOW-BAR: logged here, never looped.
 
-## Pass log
+## Behavior
+
+The backfill Validate pass graded the four capability specs produced for this repository:
+(specs/auth.md), (specs/api-surface.md), (specs/pack-storage-and-versions.md), and
+(specs/registry-config.md). Two consecutive passes found zero blockers; the stopping rule
+was satisfied on 2026-06-13.
+
+### Pass log
 
 - Pass 1 (2026-06-13): 4 drafts graded (auth, pack-storage-and-versions, api-surface,
   registry-config). Step 0 mechanical pre-check: every file has anchor matches under the
@@ -21,7 +35,7 @@ Behavior section). Everything else is BELOW-BAR: logged here, never looped.
   engaged because pass 1 found 0 blockers), so the inputs are byte-identical and the pass
   yields 0 new blockers. Stopping rule satisfied: two consecutive passes, zero new blockers.
 
-## Findings
+### Findings
 
 | Date | File | Finding | Verdict | Why |
 |------|------|---------|---------|-----|
@@ -32,3 +46,9 @@ Behavior section). Everything else is BELOW-BAR: logged here, never looped.
 | 2026-06-13 | specs/pack-storage-and-versions.md | Bulk-unpublish "tarball deletion failures log a warning but do not fail the request" cites `unpublishRoutes.js:76-80`; the per-file try/catch/`console.warn` for the bulk path is lines 80-86. | below-bar | Anchor starts a few lines above the warn; the companion single-version anchor (`:45-48`) is exact, and the claim is verifiable. |
 | 2026-06-13 | specs/registry-config.md | "stable with `docker_tag='latest', version='latest'`" seed cites `db.js:47-50`; the stable INSERT's VALUES are on line 51 (47-48 is the nightly insert, 50-51 the stable insert). | below-bar | Range truncated by one line; both seed inserts are present and the values are verifiable on the adjacent line. |
 | 2026-06-13 | specs/registry-config.md | Presets "parsed back on read" cites `presetRoutes.js:24`; the `JSON.parse(row.packs)` is on line 25 (line 24 is the `engine_channel` field). | below-bar | Off-by-one; the parse is the next line and the claim is true. |
+
+## Rejected and Reverted
+
+- None on record.
+
+## Change Log

@@ -19,3 +19,4 @@ jobs:
       - run: npm rebuild better-sqlite3 --ignore-scripts=false
       - run: npm audit --audit-level=high
       - run: npm test
+      - run: npm run spec-lint

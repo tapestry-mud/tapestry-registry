@@ -1,6 +1,6 @@
 ---
 capability: pack-storage-and-versions
-updated: 2026-06-13
+last-updated: 2026-06-13
 ---
 
 # pack-storage-and-versions
