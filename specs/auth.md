@@ -1,6 +1,6 @@
 ---
 capability: auth
-updated: 2026-06-13
+last-updated: 2026-06-13
 ---
 
 # auth

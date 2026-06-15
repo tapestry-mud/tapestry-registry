@@ -13,6 +13,7 @@ from the relevant file alone.
 | pack-storage-and-versions | [pack-storage-and-versions.md](pack-storage-and-versions.md) | 2026-06-13 |
 | api-surface | [api-surface.md](api-surface.md) | 2026-06-13 |
 | registry-config | [registry-config.md](registry-config.md) | 2026-06-13 |
+| Validation Ledger | [validation-ledger.md](validation-ledger.md) | 2026-06-13 |
 
 ## Contract summary
 
@@ -32,9 +33,27 @@ that names it in `specs:`.
   where the line part may be a single line `:123` or a range `:123-145`, and may be omitted only
   for whole-file claims. Several anchors may share one set of parentheses, joined by `; `. A test
   name in the same parentheses also counts. Lint pattern (the gate IS this regex, keep them in
-  sync): `\([@\w./\\-]+\.(js|mjs|cjs|ya?ml)(:\d+(-\d+)?)?[^)]*\)`. A file with no matches in its Behavior
+  sync): `\([@\w./\\-]+\.(cs|js|ts|json|ya?ml|md)(:\d+(-\d+)?)?[^)]*\)`. A file with no matches in its Behavior
   section fails validation outright.
 - An empty Rejected and Reverted section contains the single line `- None on record.` under the
   heading (the heading itself is always present).
 - Change Log is a one-line-per-record list, newest first: `- YYYY-MM-DD [slug](changes/...)`.
   Not a table.
+
+<!-- spec-lint:start -->
+Mode: strict
+
+Required sections: Overview, Behavior, Rejected and Reverted, Change Log
+
+Anchor regex (Behavior): \([@\w./\\-]+\.(cs|js|ts|json|ya?ml|md)(:\d+(-\d+)?)?[^)]*\)
+
+Empty-reversal sentinel: - None on record.
+
+Change Log: list, newest-first by date, not a table. Empty is valid for unmodified capabilities.
+
+Index sync: every capability .md on disk appears in README index; every indexed file exists on disk; index date matches file last-updated.
+
+Currency: for each change record naming a capability, the top Change Log entry references that record and last-updated >= record date. A capability named by zero records may have an empty Change Log.
+
+Tombstone: a change record with status:reverted requires a tombstone entry in the capability Rejected and Reverted (not the empty sentinel).
+<!-- spec-lint:end -->
